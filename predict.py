@@ -1,4 +1,4 @@
-from extractive import ExtractiveSummarizer
+from .extractive import ExtractiveSummarizer
 import argparse
 import json
 from pathlib import Path
@@ -17,9 +17,8 @@ def predict(
         "classifier_dropout": None,
         "tokenizer_name": None,
     }
-    model = ExtractiveSummarizer(
-        hparams=hparams
-    ).load_from_checkpoint(f"{model_dir}/{checkpoint_file}")
+    model = ExtractiveSummarizer.load_from_checkpoint(f"{model_dir}/{checkpoint_file}", hparams=hparams)
+    model.eval()
     
     return model.predict_sentences(
         sentences,
@@ -100,3 +99,4 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
+    
