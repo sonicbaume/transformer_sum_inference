@@ -1,0 +1,5 @@
+pytorch_lightning==1.6.5
+transformers==4.*
+spacy
+numpy
+packaging
