@@ -9,15 +9,10 @@ def predict(
     model_dir: str,
     checkpoint_file: str,
 ):
-    hparams={
-        "model_name_or_path": model_dir,
-        "no_use_token_type_ids": True,
-        "num_frozen_steps": 0,
-        "pooling_mode": None,
-        "classifier_dropout": None,
-        "tokenizer_name": None,
-    }
-    model = ExtractiveSummarizer.load_from_checkpoint(f"{model_dir}/{checkpoint_file}", hparams=hparams)
+    model = ExtractiveSummarizer.load_from_checkpoint(
+        f"{model_dir}/{checkpoint_file}", 
+        model_name_or_path=model_dir
+    )
     model.eval()
     
     return model.predict_sentences(
