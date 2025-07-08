@@ -9,23 +9,24 @@ def predict(
     model_dir: str,
     checkpoint_file: str,
 ):
-    model = ExtractiveSummarizer(hparams={
+    hparams={
         "model_name_or_path": model_dir,
         "no_use_token_type_ids": True,
         "num_frozen_steps": 0,
         "pooling_mode": None,
         "classifier_dropout": None,
         "tokenizer_name": None,
-    }).load_from_checkpoint(f"{model_dir}/{checkpoint_file}")
-    num_sentences = round(len(sentences) * ratio)
+    }
+    model = ExtractiveSummarizer(
+        hparams=hparams
+    ).load_from_checkpoint(f"{model_dir}/{checkpoint_file}")
+    
     return model.predict_sentences(
         sentences,
-        num_summary_sentences=num_sentences,
+        num_summary_sentences=round(len(sentences) * ratio),
         # return_ids=False # impo
         # raw_scores=True, # could feed these raw scores into an llm for refinement? 
     )
-
-
 
 def parse_cli(argv=None):
     """

@@ -2,7 +2,7 @@
 import logging
 import sys
 import types
-from argparse import ArgumentParser, Namespace
+from argparse import Namespace
 from typing import List, Union
 
 import pytorch_lightning as pl
@@ -369,11 +369,12 @@ class ExtractiveSummarizer(pl.LightningModule):
             )
             outputs = torch.sigmoid(outputs)
 
-        if raw_scores:
-            # key=sentence
-            # value=score
-            sent_scores = list(zip(src_txt, outputs.tolist()[0]))
-            return sent_scores
+        # make seperate function for scoring
+        # if raw_scores:
+        #     # key=sentence
+        #     # value=score
+        #     sent_scores = list(zip(src_txt, outputs.tolist()[0]))
+        #     return sent_scores
 
         sorted_ids = (
             torch.argsort(outputs, dim=1, descending=True).detach().cpu().numpy()
@@ -414,213 +415,6 @@ class ExtractiveSummarizer(pl.LightningModule):
             num_summary_sentences=num_summary_sentences,
             tokenized=True,
         )
-
-    @staticmethod
-    def add_model_specific_args(parent_parser):
-        """Arguments specific to this model"""
-        parser = ArgumentParser(parents=[parent_parser])
-        parser.add_argument(
-            "--model_name_or_path",
-            type=str,
-            default="bert-base-uncased",
-            help="Path to pre-trained model or shortcut name. A list of shortcut names can be "
-            + "found at https://huggingface.co/transformers/pretrained_models.html. "
-            + "Community-uploaded models are located at https://huggingface.co/models.",
-        )
-        parser.add_argument(
-            "--model_type",
-            type=str,
-            default="bert",
-            help="Model type selected in the list: " + ", ".join(MODEL_CLASSES),
-        )
-        parser.add_argument("--tokenizer_name", type=str, default="")
-        parser.add_argument(
-            "--tokenizer_no_use_fast",
-            action="store_true",
-            help="Don't use the fast version of the tokenizer for the specified model. "
-            + "More info: https://huggingface.co/transformers/main_classes/tokenizer.html.",
-        )
-        parser.add_argument(
-            "--max_seq_length",
-            type=int,
-            default=0,
-            help="The maximum sequence length of processed documents.",
-        )
-        parser.add_argument(
-            "--data_path", type=str, help="Directory containing the dataset."
-        )
-        parser.add_argument(
-            "--data_type",
-            default="none",
-            type=str,
-            choices=["txt", "pt", "none"],
-            help="""The file extension of the prepared data. The 'map' `--dataloader_type`
-            requires `txt` and the 'iterable' `--dataloader_type` works with both. If the data
-            is not prepared yet (in JSON format) this value specifies the output format
-            after processing. If the data is prepared, this value specifies the format to load.
-            If it is `none` then the type of data to be loaded will be inferred from the
-            `data_path`. If data needs to be prepared, this cannot be set to `none`.""",
-        )
-        parser.add_argument("--num_threads", type=int, default=4)
-        parser.add_argument("--processing_num_threads", type=int, default=2)
-        parser.add_argument(
-            "--pooling_mode",
-            type=str,
-            default="sent_rep_tokens",
-            choices=["sent_rep_tokens", "mean_tokens", "max_tokens"],
-            help="How word vectors should be converted to sentence embeddings.",
-        )
-        parser.add_argument(
-            "--num_frozen_steps",
-            type=int,
-            default=0,
-            help="Freeze (don't train) the word embedding model for this many steps.",
-        )
-        parser.add_argument(
-            "--batch_size",
-            default=8,
-            type=int,
-            help="Batch size per GPU/CPU for training/evaluation/testing.",
-        )
-        parser.add_argument(
-            "--dataloader_type",
-            default="map",
-            type=str,
-            choices=["map", "iterable"],
-            help="The style of dataloader to use. `map` is faster and uses less memory.",
-        )
-        parser.add_argument(
-            "--dataloader_num_workers",
-            default=4,
-            type=int,
-            help="""The number of workers to use when loading data. A general place to
-            start is to set num_workers equal to the number of CPU cores on your machine.
-            If `--dataloader_type` is 'iterable' then this setting has no effect and
-        num_workers will be 1. More details here: https://pytorch-lightning.readthedocs.io/en/latest/performance.html#num-workers""",  # noqa: E501
-        )
-        parser.add_argument(
-            "--processor_no_bert_compatible_cls",
-            action="store_false",
-            help="If model uses bert compatible [CLS] tokens for sentence representations.",
-        )
-        parser.add_argument(
-            "--only_preprocess",
-            action="store_true",
-            help="""Only preprocess and write the data to disk. Don't train model.
-            This will force data to be preprocessed, even if it was already computed and
-            is detected on disk, and any previous processed files will be overwritten.""",
-        )
-        parser.add_argument(
-            "--preprocess_resume",
-            action="store_true",
-            help="Resume preprocessing. `--only_preprocess` must be set in order to resume. "
-            + "Determines which files to process by finding the shards that do not have a "
-            + 'coresponding ".pt" file in the data directory.',
-        )
-        parser.add_argument(
-            "--create_token_type_ids",
-            type=str,
-            choices=["binary", "sequential"],
-            default="binary",
-            help="Create token type ids during preprocessing.",
-        )
-        parser.add_argument(
-            "--no_use_token_type_ids",
-            action="store_true",
-            help="Set to not train with `token_type_ids` (don't pass them into the model).",
-        )
-        parser.add_argument(
-            "--classifier",
-            type=str,
-            choices=["linear", "simple_linear", "transformer", "transformer_linear"],
-            default="simple_linear",
-            help="""Which classifier/encoder to use to reduce the hidden dimension of the sentence vectors.
-                    `linear` - a `LinearClassifier` with two linear layers, dropout, and an activation function.
-                    `simple_linear` - a `LinearClassifier` with one linear layer and a sigmoid.
-                    `transformer` - a `TransformerEncoderClassifier` which runs the sentence vectors through some
-                                    `nn.TransformerEncoderLayer`s and then a simple `nn.Linear` layer.
-                    `transformer_linear` - a `TransformerEncoderClassifier` with a `LinearClassifier` as the
-                                           `reduction` parameter, which results in the same thing as the `transformer` option but with a
-                                           `LinearClassifier` instead of a `nn.Linear` layer.""",  # noqa: E501
-        )
-        parser.add_argument(
-            "--classifier_dropout",
-            type=float,
-            default=0.1,
-            help="The value for the dropout layers in the classifier.",
-        )
-        parser.add_argument(
-            "--classifier_transformer_num_layers",
-            type=int,
-            default=2,
-            help="The number of layers for the `transformer` classifier. Only has an effect if "
-            + '`--classifier` contains "transformer".',
-        )
-        parser.add_argument(
-            "--train_name",
-            type=str,
-            default="train",
-            help="name for set of training files on disk (for loading and saving)",
-        )
-        parser.add_argument(
-            "--val_name",
-            type=str,
-            default="val",
-            help="name for set of validation files on disk (for loading and saving)",
-        )
-        parser.add_argument(
-            "--test_name",
-            type=str,
-            default="test",
-            help="name for set of testing files on disk (for loading and saving)",
-        )
-        parser.add_argument(
-            "--test_id_method",
-            type=str,
-            default="top_k",
-            choices=["greater_k", "top_k"],
-            help="How to chose the top predictions from the model for ROUGE scores.",
-        )
-        parser.add_argument(
-            "--test_k",
-            type=float,
-            default=3,
-            help="The `k` parameter for the `--test_id_method`. Must be set if using the "
-            + "`greater_k` option. (default: 3)",
-        )
-        parser.add_argument(
-            "--no_test_block_trigrams",
-            action="store_true",
-            help="Disable trigram blocking when calculating ROUGE scores during testing. "
-            + "This will increase repetition and thus decrease accuracy.",
-        )
-        parser.add_argument(
-            "--test_use_pyrouge",
-            action="store_true",
-            help="""Use `pyrouge`, which is an interface to the official ROUGE software, instead of
-            the pure-python implementation provided by `rouge-score`. You must have the real ROUGE
-            package installed. More details about ROUGE 1.5.5 here: https://github.com/andersjo/pyrouge/tree/master/tools/ROUGE-1.5.5.
-            It is recommended to use this option for official scores. The `ROUGE-L` measurements
-            from `pyrouge` are equivalent to the `rougeLsum` measurements from the default
-            `rouge-score` package.""",  # noqa: E501
-        )
-        parser.add_argument(
-            "--loss_key",
-            type=str,
-            choices=[
-                "loss_total",
-                "loss_total_norm_batch",
-                "loss_avg_seq_sum",
-                "loss_avg_seq_mean",
-                "loss_avg",
-            ],
-            default="loss_avg_seq_mean",
-            help="Which reduction method to use with BCELoss. See the "
-            + "`experiments/loss_functions/` folder for info on how the default "
-            + "(`loss_avg_seq_mean`) was chosen.",
-        )
-        return parser
-
 
 class SentencesProcessor:
     r"""Create a `SentencesProcessor`
