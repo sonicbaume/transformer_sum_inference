@@ -36,34 +36,6 @@ except ImportError:
         )
     )
 
-
-def longformer_modifier(final_dictionary):
-    """
-    Creates the ``global_attention_mask`` for the longformer. Tokens with global attention
-    attend to all other tokens, and all other tokens attend to them. This is important for
-    task-specific finetuning because it makes the model more flexible at representing the
-    task. For example, for classification, the `<s>` token should be given global attention.
-    For QA, all question tokens should also have global attention. For summarization,
-    global attention is given to all of the `<s>` (RoBERTa 'CLS' equivalent) tokens. Please
-    refer to the `Longformer paper <https://arxiv.org/abs/2004.05150>`_ for more details. Mask
-    values selected in ``[0, 1]``: ``0`` for local attention, ``1`` for global attention.
-    """
-    # `batch_size` is the number of attention masks (one mask per input sequence)
-    batch_size = len(final_dictionary["attention_mask"])
-    # `sequence_length` is the number of tokens for the first sequence in the batch
-    sequence_length = len(final_dictionary["attention_mask"][0])
-    # create `global_attention_mask` using the above details
-    global_attention_mask = torch.tensor([[0] * sequence_length] * batch_size)
-    # set the `sent_rep_token_ids` to 1, which is global attention
-    for idx, items in enumerate(final_dictionary["sent_rep_token_ids"]):
-        global_attention_mask[idx, items] = 1
-
-    final_dictionary["global_attention_mask"] = global_attention_mask
-    # The `global_attention_mask` is passed through the model's `forward`
-    # function as `**kwargs`.
-    return final_dictionary
-
-
 class ExtractiveSummarizer(pl.LightningModule):
     """
     A machine learning model that extractively summarizes an input text by scoring the sentences.
@@ -290,6 +262,7 @@ class ExtractiveSummarizer(pl.LightningModule):
         raw_scores=False,
         num_summary_sentences=3,
         tokenized=False,
+        return_idxs=False,
     ):
         """Summarizes ``input_sentences`` using the model.
 
@@ -344,7 +317,6 @@ class ExtractiveSummarizer(pl.LightningModule):
             cls_token=self.tokenizer.cls_token,
             bert_compatible_cls=True,
         )
-
         input_ids = torch.tensor(input_ids)
         attention_mask = [1] * len(input_ids)
         attention_mask = torch.tensor(attention_mask)
@@ -383,8 +355,11 @@ class ExtractiveSummarizer(pl.LightningModule):
         selected_ids = sorted_ids[0, :num_summary_sentences]
         logger.debug("Selected sentence ids: %s", selected_ids)
 
-        selected_sents = []
         selected_ids.sort()
+        if return_idxs:
+            return selected_ids.tolist()
+        
+        selected_sents = []
         for i in selected_ids:
             selected_sents.append(src_txt[i])
 

@@ -8,6 +8,7 @@ def predict(
     ratio: float,
     model_dir: str,
     checkpoint_file: str,
+    indexes=False,
 ):
     model = ExtractiveSummarizer.load_from_checkpoint(
         f"{model_dir}/{checkpoint_file}", 
@@ -18,6 +19,7 @@ def predict(
     return model.predict_sentences(
         sentences,
         num_summary_sentences=round(len(sentences) * ratio),
+        return_idxs=indexes,
         # return_ids=False # impo
         # raw_scores=True, # could feed these raw scores into an llm for refinement? 
     )
@@ -72,6 +74,12 @@ def parse_cli(argv=None):
         metavar="CKPT",
         help="Path to bart model checkpoint (.ckpt)",
     )
+    parser.add_argument(
+        "-i", "--indexes",
+        action="store_true",
+        default=False,                
+        help="Return the indices of the kept lines."
+    )
     args = parser.parse_args(argv)
 
     if not (0.0 < args.ratio < 1.0):
@@ -86,7 +94,8 @@ def main(argv=None):
             json.load(open(args.sentences, "r")), 
             args.ratio, 
             args.model_dir, 
-            args.model_checkpoint
+            args.model_checkpoint,
+            args.indexes,
         )
         print(json.dumps(results, indent=2, ensure_ascii=False))
     except BaseException as e:
